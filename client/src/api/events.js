@@ -3,7 +3,7 @@ import apiClient from './client';
 export const eventsApi = {
   /**
    * Discover published upcoming events with optional location, radius, and filters
-   * @param {{ lat?: number, lng?: number, radiusKm?: number, category?: string, q?: string, free?: string|boolean, mode?: string, page?: number, limit?: number }} params
+   * @param {{ lat?: number, lng?: number, radiusKm?: number, category?: string, q?: string, free?: string|boolean, mode?: string, sort?: string, availability?: string, dateFilter?: string, from?: string, to?: string, page?: number, limit?: number }} params
    * @returns {Promise<{ events: Array<any>, total: number }>}
    */
   getEvents: async (params = {}) => {
@@ -25,6 +25,12 @@ export const eventsApi = {
    * @param {string} id
    * @returns {Promise<{ event: any }>}
    */
+  getEvent: async (id) => {
+    const response = await apiClient.get(`/events/${id}`);
+    return response.data;
+  },
+
+  // Alias for backwards compatibility
   getEventById: async (id) => {
     const response = await apiClient.get(`/events/${id}`);
     return response.data;
@@ -48,6 +54,16 @@ export const eventsApi = {
    */
   updateEvent: async (id, eventData) => {
     const response = await apiClient.patch(`/events/${id}`, eventData);
+    return response.data;
+  },
+
+  /**
+   * Publish a draft event (owner only)
+   * @param {string} id
+   * @returns {Promise<{ event: any }>}
+   */
+  publishEvent: async (id) => {
+    const response = await apiClient.patch(`/events/${id}`, { status: 'published' });
     return response.data;
   },
 

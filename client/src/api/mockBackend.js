@@ -15,6 +15,24 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return Math.round(R * c * 10) / 10;
 }
 
+function decorateEvent(e) {
+  const capacity = e.capacity || 100;
+  const seatsAvailable = e.seatsAvailable !== undefined ? e.seatsAvailable : capacity;
+  const registeredCount = Math.max(0, capacity - seatsAvailable);
+  const now = new Date();
+  const deadline = e.registrationDeadline ? new Date(e.registrationDeadline) : new Date(e.startDate);
+  const registrationOpen = e.status === 'published' && seatsAvailable > 0 && deadline >= now;
+
+  return {
+    ...e,
+    tags: Array.isArray(e.tags) ? e.tags : ["Web Development"],
+    capacity,
+    seatsAvailable,
+    registeredCount,
+    registrationOpen
+  };
+}
+
 function getStoredUsers() {
   const data = localStorage.getItem('mock_users');
   if (data) {
@@ -36,13 +54,15 @@ function getStoredEvents() {
   const data = localStorage.getItem('mock_events');
   if (data) {
     try {
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return parsed.map(decorateEvent);
     } catch {
       // fallback
     }
   }
-  localStorage.setItem('mock_events', JSON.stringify(INITIAL_EVENTS));
-  return INITIAL_EVENTS;
+  const decorated = INITIAL_EVENTS.map(decorateEvent);
+  localStorage.setItem('mock_events', JSON.stringify(decorated));
+  return decorated;
 }
 
 function saveEvents(events) {
@@ -53,12 +73,10 @@ function getUserFromToken(token) {
   if (!token) return null;
   const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
   const users = getStoredUsers();
-  // Token format: "mock-jwt-{userId}"
   if (cleanToken.startsWith('mock-jwt-')) {
     const userId = cleanToken.replace('mock-jwt-', '');
     return users.find((u) => u.id === userId) || null;
   }
-  // Try to decode real or demo token if possible
   return users[0] || null;
 }
 
@@ -68,7 +86,6 @@ export function handleMockRequest(config) {
   const token = config.headers?.Authorization;
   const currentUser = getUserFromToken(token);
 
-  // Normalize path removing baseURL
   let path = url;
   if (path.startsWith('http')) {
     try {
@@ -113,18 +130,19 @@ export function handleMockRequest(config) {
     saveUsers(users);
 
     const mockToken = `mock-jwt-${newUser.id}`;
-    const userSafe = {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      interests: newUser.interests,
-      city: newUser.city
-    };
-
     return {
       status: 201,
-      data: { token: mockToken, user: userSafe }
+      data: {
+        token: mockToken,
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+          interests: newUser.interests,
+          city: newUser.city
+        }
+      }
     };
   }
 
@@ -146,58 +164,49 @@ export function handleMockRequest(config) {
     }
 
     const mockToken = `mock-jwt-${user.id}`;
-    const userSafe = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      interests: user.interests,
-      city: user.city
-    };
-
     return {
       status: 200,
-      data: { token: mockToken, user: userSafe }
+      data: {
+        token: mockToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          interests: user.interests,
+          city: user.city
+        }
+      }
     };
   }
 
   // 3. GET /auth/me
   if (method === 'get' && path === '/auth/me') {
     if (!currentUser) {
-      return {
-        status: 401,
-        data: { message: "Unauthenticated" }
-      };
+      return { status: 401, data: { message: "Unauthenticated" } };
     }
-
-    const userSafe = {
-      id: currentUser.id,
-      name: currentUser.name,
-      email: currentUser.email,
-      role: currentUser.role,
-      interests: currentUser.interests,
-      city: currentUser.city
-    };
-
     return {
       status: 200,
-      data: { user: userSafe }
+      data: {
+        user: {
+          id: currentUser.id,
+          name: currentUser.name,
+          email: currentUser.email,
+          role: currentUser.role,
+          interests: currentUser.interests,
+          city: currentUser.city
+        }
+      }
     };
   }
 
   // 4. GET /events/mine (organizer)
   if (method === 'get' && path === '/events/mine') {
     if (!currentUser) {
-      return {
-        status: 401,
-        data: { message: "Unauthenticated" }
-      };
+      return { status: 401, data: { message: "Unauthenticated" } };
     }
     if (currentUser.role !== 'organizer') {
-      return {
-        status: 403,
-        data: { message: "Access forbidden: organizers only" }
-      };
+      return { status: 403, data: { message: "Access forbidden: organizers only" } };
     }
 
     const allEvents = getStoredEvents();
@@ -230,7 +239,38 @@ export function handleMockRequest(config) {
 
     return {
       status: 200,
-      data: { event }
+      data: { event: decorateEvent(event) }
+    };
+  }
+
+  // 5b. GET /registrations/event/:eventId (event owner only)
+  const regEventMatch = path.match(/^\/registrations\/event\/([^/]+)$/);
+  if (method === 'get' && regEventMatch) {
+    const eventId = regEventMatch[1];
+    if (!currentUser) {
+      return { status: 401, data: { message: "Unauthenticated" } };
+    }
+
+    const events = getStoredEvents();
+    const event = events.find((e) => e._id === eventId || e.id === eventId);
+    if (!event) {
+      return { status: 404, data: { message: "Event not found" } };
+    }
+
+    const sampleRegistrations = [
+      { id: "reg_1", status: "registered", checkedIn: true, createdAt: "2026-10-20T10:15:00.000Z", user: { name: "Priya Patel", email: "priya.patel@example.com" } },
+      { id: "reg_2", status: "registered", checkedIn: false, createdAt: "2026-10-21T14:30:00.000Z", user: { name: "Aarav Sharma", email: "aarav.sharma@example.com" } },
+      { id: "reg_3", status: "registered", checkedIn: true, createdAt: "2026-10-22T09:20:00.000Z", user: { name: "Neha Verma", email: "neha.v@example.com" } },
+      { id: "reg_4", status: "registered", checkedIn: false, createdAt: "2026-10-23T16:45:00.000Z", user: { name: "Vikram Malhotra", email: "vikram.m@example.com" } },
+      { id: "reg_5", status: "registered", checkedIn: false, createdAt: "2026-10-24T11:00:00.000Z", user: { name: "Ananya Iyer", email: "ananya.iyer@example.com" } }
+    ];
+
+    const regCount = Math.max(1, (event.capacity || 100) - (event.seatsAvailable !== undefined ? event.seatsAvailable : 90));
+    const returned = sampleRegistrations.slice(0, Math.min(regCount, sampleRegistrations.length));
+
+    return {
+      status: 200,
+      data: { registrations: returned }
     };
   }
 
@@ -254,7 +294,7 @@ export function handleMockRequest(config) {
 
     return {
       status: 200,
-      data: { event }
+      data: { event: decorateEvent(event) }
     };
   }
 
@@ -271,13 +311,38 @@ export function handleMockRequest(config) {
       return { status: 404, data: { message: "Event not found" } };
     }
 
+    if (event.status === 'cancelled') {
+      return { status: 400, data: { message: "Cancelled events cannot be edited" } };
+    }
+
     const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+
+    if (body.status === 'cancelled') {
+      return { status: 400, data: { message: "Cannot set status to cancelled using PATCH, use cancel route" } };
+    }
+
+    // Capacity change validation
+    if (body.capacity !== undefined) {
+      const newCapacity = Number(body.capacity);
+      const registeredCount = (event.capacity || 100) - (event.seatsAvailable !== undefined ? event.seatsAvailable : 100);
+      if (newCapacity < registeredCount) {
+        return {
+          status: 400,
+          data: { message: `Capacity cannot go below current registered count (${registeredCount})` }
+        };
+      }
+      const diff = newCapacity - (event.capacity || 100);
+      event.seatsAvailable = (event.seatsAvailable !== undefined ? event.seatsAvailable : 100) + diff;
+      event.capacity = newCapacity;
+      delete body.capacity;
+    }
+
     Object.assign(event, body);
     saveEvents(events);
 
     return {
       status: 200,
-      data: { event }
+      data: { event: decorateEvent(event) }
     };
   }
 
@@ -293,24 +358,26 @@ export function handleMockRequest(config) {
     const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
     const events = getStoredEvents();
 
+    const capacityNum = Number(body.capacity || 100);
     const newEvent = {
       _id: `evt_${Date.now()}`,
       id: `evt_${Date.now()}`,
       title: body.title,
       description: body.description,
       category: body.category,
+      tags: Array.isArray(body.tags) ? body.tags.slice(0, 4) : [],
       startDate: body.startDate,
       endDate: body.endDate,
       registrationDeadline: body.registrationDeadline,
       venue: body.venue || { name: "", address: "", city: "" },
       location: {
         type: "Point",
-        coordinates: [body.lng || 72.8777, body.lat || 19.0760]
+        coordinates: [parseFloat(body.lng || 72.8777), parseFloat(body.lat || 19.0760)]
       },
       mode: body.mode || 'offline',
       price: Number(body.price || 0),
-      capacity: Number(body.capacity || 100),
-      seatsAvailable: Number(body.capacity || 100),
+      capacity: capacityNum,
+      seatsAvailable: capacityNum,
       coverImage: body.coverImage || "",
       status: body.status || 'draft',
       organizer: {
@@ -327,7 +394,7 @@ export function handleMockRequest(config) {
 
     return {
       status: 201,
-      data: { event: newEvent }
+      data: { event: decorateEvent(newEvent) }
     };
   }
 
@@ -343,26 +410,11 @@ export function handleMockRequest(config) {
     const mode = params.mode;
 
     const allEvents = getStoredEvents();
-
-    // Published and upcoming (or active) only
     let filtered = allEvents.filter((e) => e.status === 'published');
 
-    // Category filter
-    if (category) {
-      filtered = filtered.filter((e) => e.category === category);
-    }
-
-    // Free filter
-    if (free) {
-      filtered = filtered.filter((e) => e.price === 0);
-    }
-
-    // Mode filter
-    if (mode) {
-      filtered = filtered.filter((e) => e.mode === mode);
-    }
-
-    // Keyword search
+    if (category) filtered = filtered.filter((e) => e.category === category);
+    if (free) filtered = filtered.filter((e) => e.price === 0);
+    if (mode) filtered = filtered.filter((e) => e.mode === mode);
     if (q) {
       filtered = filtered.filter(
         (e) =>
@@ -373,7 +425,6 @@ export function handleMockRequest(config) {
       );
     }
 
-    // Calculate distanceKm for each event if lat & lng are given
     filtered = filtered.map((e) => {
       let distanceKm = null;
       if (e.location?.coordinates && e.location.coordinates.length >= 2) {
@@ -381,17 +432,15 @@ export function handleMockRequest(config) {
         distanceKm = calculateDistance(lat, lng, eLat, eLng);
       }
       return {
-        ...e,
+        ...decorateEvent(e),
         distanceKm
       };
     });
 
-    // Filter by radiusKm
     if (radiusKm && !isNaN(radiusKm)) {
       filtered = filtered.filter((e) => e.distanceKm === null || e.distanceKm <= radiusKm);
     }
 
-    // Sort nearest first
     filtered.sort((a, b) => {
       if (a.distanceKm === null) return 1;
       if (b.distanceKm === null) return -1;
