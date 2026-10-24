@@ -29,7 +29,18 @@ A powerful backend service and API for discovering, managing, and attending hype
 
 ```plaintext
 junction/
-├── server/
+├── client/                           # React + Vite Frontend
+│   ├── src/
+│   │   ├── api/                      # Axios client, mock backend & endpoints
+│   │   ├── components/               # Navbar, EventCard, Loader, ProtectedRoute
+│   │   ├── context/                  # AuthContext for session management
+│   │   ├── pages/                    # Home, EventDetail, OrganizerDashboard, Login, Register
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── package.json
+│   ├── tailwind.config.js
+│   └── vite.config.js
+├── server/                           # Express + Node.js Backend
 │   └── src/
 │       ├── constants/
 │       │   └── categories.js         # Standardized event categories
@@ -46,6 +57,14 @@ junction/
 
 ## 🛠️ Tech Stack
 
+### Frontend (`client/`)
+- **Library & Build**: [React 18](https://react.dev/), [Vite](https://vitejs.dev/)
+- **Routing**: [React Router DOM v6](https://reactrouter.com/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **HTTP Client**: [Axios](https://axios-http.com/)
+
+### Backend (`server/`)
 - **Runtime**: [Node.js](https://nodejs.org/) (v18+)
 - **Framework**: [Express.js](https://expressjs.com/)
 - **Database**: [MongoDB](https://www.mongodb.com/) with Mongoose ODM
@@ -162,30 +181,45 @@ Base Path: `/events`
 - [Node.js](https://nodejs.org/) (v18 or higher)
 - [MongoDB](https://www.mongodb.com/) (local daemon or MongoDB Atlas connection URI)
 
-### 2. Environment Configuration
-Create a `.env` file in the root or `server/` directory:
-```env
+---
+
+### 2. Backend Setup (`server/`)
+
+```bash
+# 1. Navigate to the server directory
+cd server
+
+# 2. Configure environment
+# Create .env with the following:
 PORT=5000
 MONGO_URI=mongodb://localhost:27017/hyperlocal_events
 JWT_SECRET=your_jwt_secret_key
-```
 
-### 3. Installation
-```bash
-# Navigate to the server directory
-cd server
-
-# Install dependencies
+# 3. Install dependencies
 npm install
+
+# 4. Run server
+npm run dev
 ```
 
-### 4. Running the Server
-```bash
-# Development mode
-npm run dev
+---
 
-# Production mode
-npm start
+### 3. Frontend Setup (`client/`)
+
+```bash
+# 1. Navigate to the client directory
+cd client
+
+# 2. Configure environment
+# Copy .env.example to .env
+cp .env.example .env
+# VITE_API_URL=http://localhost:5000/api
+
+# 3. Install dependencies
+npm install
+
+# 4. Start frontend dev server
+npm run dev
 ```
 
 ---
