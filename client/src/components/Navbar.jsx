@@ -32,7 +32,8 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden sm:ml-8 sm:flex sm:space-x-4">
+            <div className="hidden sm:ml-8 sm:flex sm:space-x-2">
+              {/* Home for everyone */}
               <Link
                 to="/"
                 className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition ${
@@ -41,20 +42,48 @@ export default function Navbar() {
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                Discover
+                Home
               </Link>
 
-              {isAuthenticated && user?.role === 'organizer' && (
+              {/* Attendee Links: Home + My Events */}
+              {isAuthenticated && user?.role === 'attendee' && (
                 <Link
-                  to="/organizer"
+                  to="/my-events"
                   className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition ${
-                    isActive('/organizer')
+                    isActive('/my-events')
                       ? 'text-indigo-600 bg-indigo-50 font-semibold'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
-                  Organizer Dashboard
+                  My Events
                 </Link>
+              )}
+
+              {/* Organizer Links: Home + Dashboard + Create Event */}
+              {isAuthenticated && user?.role === 'organizer' && (
+                <>
+                  <Link
+                    to="/organizer"
+                    className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition ${
+                      isActive('/organizer')
+                        ? 'text-indigo-600 bg-indigo-50 font-semibold'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+
+                  <Link
+                    to="/organizer/events/new"
+                    className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition ${
+                      isActive('/organizer/events/new')
+                        ? 'text-indigo-600 bg-indigo-50 font-semibold'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    + Create Event
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -140,19 +169,42 @@ export default function Navbar() {
               isActive('/') ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
-            Discover Events
+            Home
           </Link>
 
-          {isAuthenticated && user?.role === 'organizer' && (
+          {isAuthenticated && user?.role === 'attendee' && (
             <Link
-              to="/organizer"
+              to="/my-events"
               onClick={() => setMobileMenuOpen(false)}
               className={`block px-3 py-2 rounded-md text-base font-medium ${
-                isActive('/organizer') ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'
+                isActive('/my-events') ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              Organizer Dashboard
+              My Events
             </Link>
+          )}
+
+          {isAuthenticated && user?.role === 'organizer' && (
+            <>
+              <Link
+                to="/organizer"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                  isActive('/organizer') ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Dashboard
+              </Link>
+              <Link
+                to="/organizer/events/new"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                  isActive('/organizer/events/new') ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                + Create Event
+              </Link>
+            </>
           )}
 
           {isAuthenticated ? (
